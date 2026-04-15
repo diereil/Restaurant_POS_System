@@ -16,9 +16,9 @@ const Menu = () => {
   const customerData = useSelector((state) => state.customer);
 
   return (
-    <section className="bg-[#1f1f1f] h-[calc(100vh-5rem)] overflow-hidden flex gap-3">
-      <div className="flex-[3] min-w-0 overflow-y-auto">
-        <div className="flex items-center justify-between px-10 py-4">
+    <section className="bg-[#1f1f1f] h-[calc(100vh-5rem)] overflow-hidden flex gap-4 px-3 pt-3 pb-24">
+      <div className="flex-[3] min-w-0 overflow-y-auto scrollbar-hide bg-[#1a1a1a] rounded-xl">
+        <div className="flex items-center justify-between px-6 py-4 sticky top-0 z-10 bg-[#1a1a1a]">
           <div className="flex items-center gap-4">
             <BackButton />
             <h1 className="text-[#f5f5f5] text-2xl font-bold tracking-wider">
@@ -26,17 +26,15 @@ const Menu = () => {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 cursor-pointer">
-              <MdRestaurantMenu className="text-[#f5f5f5] text-4xl" />
-              <div className="flex flex-col items-start">
-                <h1 className="text-md text-[#f5f5f5] font-semibold tracking-wide">
-                  {customerData.customerName || "Customer Name"}
-                </h1>
-                <p className="text-xs text-[#ababab] font-medium">
-                  Table : {customerData.table?.tableNo || "N/A"}
-                </p>
-              </div>
+          <div className="flex items-center gap-3 cursor-pointer shrink-0">
+            <MdRestaurantMenu className="text-[#f5f5f5] text-4xl" />
+            <div className="flex flex-col items-start">
+              <h1 className="text-md text-[#f5f5f5] font-semibold tracking-wide">
+                {customerData.customerName || "Customer Name"}
+              </h1>
+              <p className="text-xs text-[#ababab] font-medium">
+                Table : {customerData.table?.tableNo || "N/A"}
+              </p>
             </div>
           </div>
         </div>
@@ -44,18 +42,18 @@ const Menu = () => {
         <MenuContainer />
       </div>
 
-      <div className="flex-[1] min-w-[320px] bg-[#1a1a1a] mt-4 mr-3 rounded-lg flex flex-col min-h-0 h-[calc(100vh-12rem)] mb-24 overflow-hidden">
+      <div className="flex-[1] min-w-[350px] max-w-[390px] bg-[#1a1a1a] rounded-xl flex flex-col min-h-0 overflow-hidden">
         <div className="shrink-0">
           <CustomerInfo />
-          <hr className="border-[#2a2a2a] border-t-2" />
+          <hr className="border-[#2a2a2a] border-t" />
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
           <CartInfo />
         </div>
 
-        <div className="shrink-0 pb-4">
-          <hr className="border-[#2a2a2a] border-t-2" />
+        <div className="shrink-0">
+          <hr className="border-[#2a2a2a] border-t" />
           <Bill />
         </div>
       </div>

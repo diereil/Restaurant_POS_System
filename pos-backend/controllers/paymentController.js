@@ -3,6 +3,9 @@ const createHttpError = require("http-errors");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ✅ change this once, reuse everywhere
+const FRONTEND_URL = "http://localhost:5173";
+
 const createCheckoutSession = async (req, res, next) => {
   try {
     const { amount, description, customer } = req.body;
@@ -20,22 +23,27 @@ const createCheckoutSession = async (req, res, next) => {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+
       line_items: [
         {
           price_data: {
-            currency: "php",
+            currency: "php", // ✅ you can keep PHP
             product_data: {
               name: "Restaurant Order",
               description: description || "Restaurant POS Order",
             },
-            unit_amount: Math.round(numericAmount * 100), // centavos
+            unit_amount: Math.round(numericAmount * 100),
           },
           quantity: 1,
         },
       ],
+
       customer_email: customer?.email || undefined,
-      success_url: "http://localhost:5174/payment-success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "http://localhost:5174/menu",
+
+      // ✅ FIXED URLS
+      success_url: `${FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${FRONTEND_URL}/menu`,
+
       metadata: {
         customerName: customer?.name || "Customer",
         customerPhone: customer?.phone || "",
@@ -49,6 +57,7 @@ const createCheckoutSession = async (req, res, next) => {
     });
   } catch (error) {
     console.log("❌ Stripe Checkout Error:", error);
+
     return next(
       createHttpError(
         error?.statusCode || 500,
@@ -74,6 +83,7 @@ const getCheckoutSession = async (req, res, next) => {
     });
   } catch (error) {
     console.log("❌ Stripe Session Retrieve Error:", error);
+
     return next(
       createHttpError(
         error?.statusCode || 500,

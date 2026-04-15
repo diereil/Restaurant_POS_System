@@ -25,6 +25,7 @@ const Bill = () => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
   const [orderInfo, setOrderInfo] = useState(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const orderMutation = useMutation({
     mutationFn: (reqData) => addOrder(reqData),
@@ -44,6 +45,7 @@ const Bill = () => {
 
       enqueueSnackbar("Order Placed!", { variant: "success" });
       setShowInvoice(true);
+      setIsPlacingOrder(false);
     },
     onError: (error) => {
       console.log("ORDER ERROR:", error?.response?.data || error);
@@ -51,6 +53,7 @@ const Bill = () => {
         error?.response?.data?.message || "Failed to place order!",
         { variant: "error" }
       );
+      setIsPlacingOrder(false);
     },
   });
 
@@ -123,7 +126,10 @@ const Bill = () => {
   });
 
   const handlePlaceOrder = async () => {
+    if (isPlacingOrder) return;
     if (!validateOrder()) return;
+
+    setIsPlacingOrder(true);
 
     if (paymentMethod === "Online") {
       try {
@@ -153,6 +159,7 @@ const Bill = () => {
           enqueueSnackbar("Failed to get Stripe checkout URL!", {
             variant: "error",
           });
+          setIsPlacingOrder(false);
           return;
         }
 
@@ -163,6 +170,7 @@ const Bill = () => {
           error?.response?.data?.message || "Failed to start online payment!",
           { variant: "error" }
         );
+        setIsPlacingOrder(false);
       }
 
       return;
@@ -174,45 +182,45 @@ const Bill = () => {
 
   return (
     <>
-      <div className="px-5 py-3 bg-[#1a1a1a]">
+      <div className="px-4 py-4 bg-[#1a1a1a]">
         <div className="flex items-center justify-between mt-1">
-          <p className="text-xs text-[#ababab] font-medium">
+          <p className="text-sm text-[#ababab] font-medium">
             Items({cartData.length})
           </p>
-          <h1 className="text-[#f5f5f5] text-md font-bold">
+          <h1 className="text-[#f5f5f5] text-lg font-bold">
             ₱{total.toFixed(2)}
           </h1>
         </div>
 
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-[#ababab] font-medium">Tax(5.25%)</p>
-          <h1 className="text-[#f5f5f5] text-md font-bold">
+          <p className="text-sm text-[#ababab] font-medium">Tax(5.25%)</p>
+          <h1 className="text-[#f5f5f5] text-lg font-bold">
             ₱{tax.toFixed(2)}
           </h1>
         </div>
 
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-[#ababab] font-medium">Total With Tax</p>
-          <h1 className="text-[#f5f5f5] text-md font-bold">
+          <p className="text-sm text-[#ababab] font-medium">Total With Tax</p>
+          <h1 className="text-[#f5f5f5] text-lg font-bold">
             ₱{totalPriceWithTax.toFixed(2)}
           </h1>
         </div>
 
         {paymentMethod === "Online" && (
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-[#f6b100] font-medium">
+            <p className="text-sm text-[#f6b100] font-medium">
               Stripe Checkout (PHP)
             </p>
-            <h1 className="text-[#f6b100] text-md font-bold">
+            <h1 className="text-[#f6b100] text-lg font-bold">
               ₱{totalPriceWithTax.toFixed(2)}
             </h1>
           </div>
         )}
 
-        <div className="flex items-center gap-3 mt-4">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           <button
             onClick={() => setPaymentMethod("Cash")}
-            className={`px-4 py-3 w-full rounded-lg text-[#ababab] font-semibold transition ${
+            className={`px-4 py-3 rounded-lg text-[#ababab] font-semibold transition ${
               paymentMethod === "Cash" ? "bg-[#383737]" : "bg-[#1f1f1f]"
             }`}
             type="button"
@@ -222,7 +230,7 @@ const Bill = () => {
 
           <button
             onClick={() => setPaymentMethod("Online")}
-            className={`px-4 py-3 w-full rounded-lg text-[#ababab] font-semibold transition ${
+            className={`px-4 py-3 rounded-lg text-[#ababab] font-semibold transition ${
               paymentMethod === "Online" ? "bg-[#383737]" : "bg-[#1f1f1f]"
             }`}
             type="button"
@@ -231,9 +239,9 @@ const Bill = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 mt-4">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           <button
-            className="bg-[#025cca] px-4 py-3 w-full rounded-lg text-[#f5f5f5] font-semibold text-lg"
+            className="bg-[#025cca] px-4 py-3 rounded-lg text-[#f5f5f5] font-semibold text-lg"
             type="button"
           >
             Print Receipt
@@ -241,10 +249,13 @@ const Bill = () => {
 
           <button
             onClick={handlePlaceOrder}
-            className="bg-[#f6b100] px-4 py-3 w-full rounded-lg text-[#1f1f1f] font-semibold text-lg"
+            disabled={isPlacingOrder}
+            className={`bg-[#f6b100] px-4 py-3 rounded-lg text-[#1f1f1f] font-semibold text-lg ${
+              isPlacingOrder ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             type="button"
           >
-            Place Order
+            {isPlacingOrder ? "Processing..." : "Place Order"}
           </button>
         </div>
       </div>

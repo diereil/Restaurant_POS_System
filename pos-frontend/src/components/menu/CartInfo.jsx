@@ -23,8 +23,8 @@ const CartInfo = () => {
   };
 
   return (
-    <div className="px-4 py-2 h-full flex flex-col min-h-0">
-      <h1 className="text-lg text-[#e4e4e4] font-semibold tracking-wide shrink-0">
+    <div className="px-4 py-4 h-full flex flex-col min-h-0">
+      <h1 className="text-xl text-[#e4e4e4] font-semibold tracking-wide shrink-0">
         Order Details
       </h1>
 
@@ -33,19 +33,20 @@ const CartInfo = () => {
         ref={scrollRef}
       >
         {cartData.length === 0 ? (
-          <p className="text-[#ababab] text-sm flex justify-center items-center h-full">
+          <p className="text-[#ababab] text-sm flex justify-center items-center h-full text-center px-4">
             Your cart is empty. Start adding items!
           </p>
         ) : (
           cartData.map((item, index) => (
             <div
               key={item.id || item._id || `${item.name}-${index}`}
-              className="bg-[#1f1f1f] rounded-lg px-4 py-4 mb-2"
+              className="bg-[#1f1f1f] rounded-xl px-4 py-4 mb-3"
             >
-              <div className="flex items-center justify-between gap-3">
-                <h1 className="text-[#ababab] font-semibold tracking-wide text-md">
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-[#ababab] font-semibold tracking-wide text-md leading-snug">
                   {item.name}
                 </h1>
+
                 <p className="text-[#ababab] font-semibold shrink-0">
                   x{item.quantity}
                 </p>
@@ -55,17 +56,18 @@ const CartInfo = () => {
                 <div className="flex items-center gap-3">
                   <RiDeleteBin2Fill
                     onClick={() => handleRemove(item.id || item._id)}
-                    className="text-[#ababab] cursor-pointer"
+                    className="text-[#ababab] cursor-pointer hover:text-red-400"
                     size={20}
                   />
+
                   <FaNotesMedical
-                    className="text-[#ababab] cursor-pointer"
-                    size={20}
+                    className="text-[#ababab] cursor-pointer hover:text-yellow-400"
+                    size={18}
                   />
                 </div>
 
                 <p className="text-[#f5f5f5] text-md font-bold">
-                  ₱{item.price}
+                  ₱{Number(item.price || 0).toFixed(2)}
                 </p>
               </div>
             </div>

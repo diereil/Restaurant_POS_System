@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import BottomNav from "../components/shared/BottomNav";
 import OrderCard from "../components/orders/OrderCard";
 import BackButton from "../components/shared/BackButton";
@@ -6,10 +6,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrders, updateOrderStatus, deleteOrder } from "../https/index";
 import { enqueueSnackbar } from "notistack";
 import socket from "../socket";
+import { useReactToPrint } from "react-to-print";
+import Receipt from "../components/receipt/Receipt";
 
 const Orders = () => {
   const [status, setStatus] = useState("all");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
   const queryClient = useQueryClient();
+  const printRef = useRef();
 
   useEffect(() => {
     document.title = "POS | Orders";
@@ -29,6 +34,13 @@ const Orders = () => {
       socket.off("new-order", handleOrdersUpdated);
     };
   }, [queryClient]);
+
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: selectedOrder
+      ? `Receipt-${selectedOrder._id.slice(-6)}`
+      : "Receipt",
+  });
 
   const { data: resData, isError, isLoading } = useQuery({
     queryKey: ["orders"],
@@ -81,6 +93,14 @@ const Orders = () => {
     } catch (error) {
       enqueueSnackbar("Failed to delete order", { variant: "error" });
     }
+  };
+
+  const handlePrintReceipt = (order) => {
+    setSelectedOrder(order);
+
+    setTimeout(() => {
+      handlePrint();
+    }, 200);
   };
 
   return (
@@ -167,6 +187,13 @@ const Orders = () => {
                     </>
                   )}
 
+                  <button
+                    onClick={() => handlePrintReceipt(order)}
+                    className="bg-yellow-500 hover:bg-yellow-600 px-3 py-2 rounded text-black text-sm font-medium"
+                  >
+                    Print Receipt
+                  </button>
+
                   {(order.orderStatus === "Completed" ||
                     order.orderStatus === "Canceled") && (
                     <button
@@ -183,6 +210,10 @@ const Orders = () => {
         ) : (
           <p className="text-gray-500">No orders available</p>
         )}
+      </div>
+
+      <div style={{ display: "none" }}>
+        {selectedOrder && <Receipt ref={printRef} order={selectedOrder} />}
       </div>
 
       <BottomNav />

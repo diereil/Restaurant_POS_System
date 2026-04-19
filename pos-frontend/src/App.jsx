@@ -13,8 +13,8 @@ import FullScreenLoader from "./components/shared/FullScreenLoader";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import CustomerMenu from "./pages/CustomerMenu";
 import CustomerPaymentSuccess from "./pages/CustomerPaymentSuccess";
+import VerifyOtp from "./pages/VerifyOtp";
 
-// 🔥 NEW ROLE PROTECTED ROUTE
 function ProtectedRoute({ children, allowedRoles }) {
   const { isAuth, role } = useSelector((state) => state.user);
 
@@ -28,17 +28,24 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function Layout() {
-  const isLoading = useLoadData();
   const location = useLocation();
+  const isLoading = useLoadData();
 
-  const hideHeaderRoutes = ["/auth"];
+  const hideHeaderRoutes = ["/auth", "/verify-otp"];
 
   const shouldHideHeader =
     hideHeaderRoutes.includes(location.pathname) ||
     location.pathname.startsWith("/customer-menu") ||
     location.pathname.startsWith("/customer-payment-success");
 
-  if (isLoading) return <FullScreenLoader />;
+  const isCustomerRoute =
+    location.pathname.startsWith("/customer-menu") ||
+    location.pathname.startsWith("/customer-payment-success");
+
+  const isPublicRoute =
+    hideHeaderRoutes.includes(location.pathname) || isCustomerRoute;
+
+  if (isLoading && !isPublicRoute) return <FullScreenLoader />;
 
   return (
     <>
@@ -47,8 +54,12 @@ function Layout() {
       <Routes>
         {/* PUBLIC */}
         <Route path="/auth" element={<Auth />} />
+        <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
-        <Route path="/customer-payment-success" element={<CustomerPaymentSuccess />} />
+        <Route
+          path="/customer-payment-success"
+          element={<CustomerPaymentSuccess />}
+        />
         <Route path="/customer-menu/:tableNo" element={<CustomerMenu />} />
 
         {/* ALL ROLES */}

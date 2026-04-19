@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAvatarName, getBgColor } from "../../utils";
 import { useDispatch } from "react-redux";
@@ -7,6 +7,8 @@ import { updateTable, getOrderById } from "../../https";
 import { enqueueSnackbar } from "notistack";
 import { QRCodeCanvas } from "qrcode.react";
 import Modal from "../shared/Modal";
+import { useReactToPrint } from "react-to-print";
+import Receipt from "../receipt/Receipt";
 
 const TableCard = ({
   id,
@@ -24,6 +26,14 @@ const TableCard = ({
   const [showOrder, setShowOrder] = useState(false);
   const [orderData, setOrderData] = useState(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
+
+  const printRef = useRef(null);
+
+  // ✅ react-to-print newer API
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: orderData ? `Receipt-Table-${name}` : "Receipt",
+  });
 
   const handleClick = () => {
     if (status === "Booked") return;
@@ -44,9 +54,7 @@ const TableCard = ({
 
       enqueueSnackbar("Table set to Available", { variant: "success" });
 
-      if (onTableUpdated) {
-        onTableUpdated();
-      }
+      if (onTableUpdated) onTableUpdated();
     } catch (err) {
       enqueueSnackbar("Failed to update table", { variant: "error" });
     }
@@ -56,9 +64,7 @@ const TableCard = ({
     e.stopPropagation();
 
     if (!orderId) {
-      enqueueSnackbar("No active order found for this table", {
-        variant: "warning",
-      });
+      enqueueSnackbar("No active order found", { variant: "warning" });
       return;
     }
 
@@ -68,10 +74,18 @@ const TableCard = ({
       setOrderData(res?.data?.data || null);
       setShowOrder(true);
     } catch (err) {
-      enqueueSnackbar("Failed to fetch order details", { variant: "error" });
+      enqueueSnackbar("Failed to fetch order", { variant: "error" });
     } finally {
       setLoadingOrder(false);
     }
+  };
+
+  const handlePrintReceipt = () => {
+    if (!orderData) {
+      enqueueSnackbar("No receipt data found", { variant: "warning" });
+      return;
+    }
+    handlePrint();
   };
 
   const statusStyle =
@@ -81,10 +95,7 @@ const TableCard = ({
 
   const qrUrl = `http://localhost:5173/customer-menu/${name}`;
 
-  const total =
-    orderData?.bills?.totalWithTax ??
-    orderData?.bills?.total ??
-    0;
+  const total = orderData?.bills?.totalWithTax ?? orderData?.bills?.total ?? 0;
 
   return (
     <>
@@ -94,7 +105,6 @@ const TableCard = ({
       >
         <div className="flex justify-between items-center">
           <h1 className="text-white font-semibold text-lg">Table {name}</h1>
-
           <span className={`px-2 py-1 text-xs rounded ${statusStyle}`}>
             {status}
           </span>
@@ -157,11 +167,8 @@ const TableCard = ({
               ✕
             </button>
 
-            <h1 className="text-lg font-bold mb-4">Table {name} QR Code</h1>
-
+            <h1 className="text-lg font-bold mb-4">Table {name} QR</h1>
             <QRCodeCanvas value={qrUrl} size={200} />
-
-            <p className="text-xs mt-3 text-gray-600">Scan to order</p>
           </div>
         </div>
       )}
@@ -172,66 +179,57 @@ const TableCard = ({
           setShowOrder(false);
           setOrderData(null);
         }}
-        title={`Table ${name} Order Details`}
+        title={`Table ${name} Order`}
       >
         {orderData ? (
           <div className="text-white space-y-5">
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#262626] rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">Customer</p>
+              <div className="bg-[#262626] p-3 rounded">
+                <p className="text-xs text-gray-400">Customer</p>
                 <p className="font-semibold">
                   {orderData.customerDetails?.name || "Guest"}
                 </p>
               </div>
 
-              <div className="bg-[#262626] rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">Phone</p>
+              <div className="bg-[#262626] p-3 rounded">
+                <p className="text-xs text-gray-400">Phone</p>
                 <p className="font-semibold">
                   {orderData.customerDetails?.phone || "N/A"}
                 </p>
               </div>
 
-              <div className="bg-[#262626] rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">Guests</p>
+              <div className="bg-[#262626] p-3 rounded">
+                <p className="text-xs text-gray-400">Guests</p>
                 <p className="font-semibold">
                   {orderData.customerDetails?.guests || 1}
                 </p>
               </div>
 
-              <div className="bg-[#262626] rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">Payment</p>
-                <span
-                  className={`inline-block px-3 py-1 rounded text-sm ${
-                    orderData.paymentMethod === "Cash"
-                      ? "bg-green-600"
-                      : "bg-blue-600"
-                  }`}
-                >
-                  {orderData.paymentMethod || "N/A"}
-                </span>
+              <div className="bg-[#262626] p-3 rounded">
+                <p className="text-xs text-gray-400">Payment</p>
+                <p className="font-semibold">{orderData.paymentMethod}</p>
               </div>
             </div>
 
-            <div className="bg-[#262626] rounded-lg p-4">
+            <div className="bg-[#262626] p-4 rounded">
               <p className="text-sm font-semibold mb-3">Items Ordered</p>
 
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {orderData.items?.length > 0 ? (
-                  orderData.items.map((item, index) => (
+                  orderData.items.map((item, i) => (
                     <div
-                      key={`${item.id || item.name}-${index}`}
-                      className="flex justify-between items-center border-b border-[#3a3a3a] pb-2"
+                      key={`${item.id || item.name}-${i}`}
+                      className="flex justify-between text-sm border-b border-[#333] py-2"
                     >
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-gray-400">
-                          Qty: {item.quantity} × ₱{item.price}
-                        </p>
-                      </div>
-
-                      <p className="font-semibold">
-                        ₱{(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}
-                      </p>
+                      <span>
+                        {item.name} x {item.quantity}
+                      </span>
+                      <span>
+                        ₱
+                        {(
+                          Number(item.price || 0) * Number(item.quantity || 0)
+                        ).toFixed(2)}
+                      </span>
                     </div>
                   ))
                 ) : (
@@ -240,24 +238,27 @@ const TableCard = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between bg-[#262626] rounded-lg p-4">
-              <div>
-                <p className="text-xs text-gray-400">Order Status</p>
-                <p className="font-semibold text-yellow-400">
-                  {orderData.orderStatus || "In Progress"}
-                </p>
-              </div>
-
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Total</p>
-                <p className="text-xl font-bold">₱{Number(total).toFixed(2)}</p>
-              </div>
+            <div className="flex justify-between font-bold text-lg">
+              <span>Total</span>
+              <span>₱{Number(total).toFixed(2)}</span>
             </div>
+
+            <button
+              onClick={handlePrintReceipt}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black py-2 rounded font-bold"
+            >
+              Print Receipt
+            </button>
           </div>
         ) : (
-          <p className="text-white">No order details found.</p>
+          <p className="text-white">No data</p>
         )}
       </Modal>
+
+      {/* ✅ hidden printable content must stay mounted */}
+      <div className="fixed -left-[9999px] top-0">
+        {orderData && <Receipt ref={printRef} order={orderData} />}
+      </div>
     </>
   );
 };

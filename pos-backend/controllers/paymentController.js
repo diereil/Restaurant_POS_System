@@ -3,12 +3,11 @@ const createHttpError = require("http-errors");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ change this once, reuse everywhere
 const FRONTEND_URL = "http://localhost:5173";
 
 const createCheckoutSession = async (req, res, next) => {
   try {
-    const { amount, description, customer } = req.body;
+    const { amount, description, customer, successPath, cancelPath } = req.body;
 
     const numericAmount = Number(amount);
 
@@ -20,14 +19,16 @@ const createCheckoutSession = async (req, res, next) => {
       return next(createHttpError(500, "Missing Stripe secret key!"));
     }
 
+    const finalSuccessPath = successPath || "/payment-success";
+    const finalCancelPath = cancelPath || "/menu";
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-
       line_items: [
         {
           price_data: {
-            currency: "php", // ✅ you can keep PHP
+            currency: "php",
             product_data: {
               name: "Restaurant Order",
               description: description || "Restaurant POS Order",
@@ -37,13 +38,9 @@ const createCheckoutSession = async (req, res, next) => {
           quantity: 1,
         },
       ],
-
       customer_email: customer?.email || undefined,
-
-      // ✅ FIXED URLS
-      success_url: `${FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${FRONTEND_URL}/menu`,
-
+      success_url: `${FRONTEND_URL}${finalSuccessPath}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${FRONTEND_URL}${finalCancelPath}`,
       metadata: {
         customerName: customer?.name || "Customer",
         customerPhone: customer?.phone || "",

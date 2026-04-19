@@ -4,6 +4,7 @@ import { BiSolidDish } from "react-icons/bi";
 import Metrics from "../components/dashboard/Metrics";
 import RecentOrders from "../components/dashboard/RecentOrders";
 import Modal from "../components/dashboard/Modal";
+import Payments from "../components/dashboard/Payments";
 
 const buttons = [
   { label: "Add Table", icon: <MdTableBar />, action: "table" },
@@ -33,6 +34,7 @@ const Dashboard = () => {
           {buttons.map(({ label, icon, action }) => {
             return (
               <button
+               key={action} 
                 onClick={() => handleOpenModal(action)}
                 className="bg-[#1a1a1a] hover:bg-[#262626] px-8 py-3 rounded-lg text-[#f5f5f5] font-semibold text-md flex items-center gap-2"
               >
@@ -46,6 +48,7 @@ const Dashboard = () => {
           {tabs.map((tab) => {
             return (
               <button
+              key={tab}
                 className={`
                 px-8 py-3 rounded-lg text-[#f5f5f5] font-semibold text-md flex items-center gap-2 ${
                   activeTab === tab
@@ -63,11 +66,7 @@ const Dashboard = () => {
 
       {activeTab === "Metrics" && <Metrics />}
       {activeTab === "Orders" && <RecentOrders />}
-      {activeTab === "Payments" && 
-        <div className="text-white p-6 container mx-auto">
-          Payment Component Coming Soon
-        </div>
-      }
+      {activeTab === "Payments" && <Payments />}
 
       {isTableModalOpen && <Modal setIsTableModalOpen={setIsTableModalOpen} />}
     </div>

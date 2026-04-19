@@ -5,101 +5,142 @@ import { CiCircleMore } from "react-icons/ci";
 import { BiSolidDish } from "react-icons/bi";
 import { useNavigate, useLocation } from "react-router-dom";
 import Modal from "./Modal";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setCustomer } from "../../redux/slices/customerSlice";
 
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.user);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [guestCount, setGuestCount] = useState(0);
-  const [name, setName] = useState();
-  const [phone, setPhone] = useState();
+  const [guestCount, setGuestCount] = useState(1);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
   const increment = () => {
-    if(guestCount >= 6) return;
+    if (guestCount >= 10) return;
     setGuestCount((prev) => prev + 1);
-  }
+  };
+
   const decrement = () => {
-    if(guestCount <= 0) return;
+    if (guestCount <= 1) return;
     setGuestCount((prev) => prev - 1);
-  }
+  };
 
   const isActive = (path) => location.pathname === path;
 
   const handleCreateOrder = () => {
-    // send the data to store
-    dispatch(setCustomer({name, phone, guests: guestCount}));
+    if (!name || !phone) return;
+
+    dispatch(setCustomer({ name, phone, guests: guestCount }));
+    closeModal();
     navigate("/tables");
-  }
+  };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#262626] p-2 h-16 flex justify-around">
-      <button
-        onClick={() => navigate("/")}
-        className={`flex items-center justify-center font-bold ${
-          isActive("/") ? "text-[#f5f5f5] bg-[#343434]" : "text-[#ababab]"
-        } w-[300px] rounded-[20px]`}
-      >
-        <FaHome className="inline mr-2" size={20} /> <p>Home</p>
-      </button>
-      <button
-        onClick={() => navigate("/orders")}
-        className={`flex items-center justify-center font-bold ${
-          isActive("/orders") ? "text-[#f5f5f5] bg-[#343434]" : "text-[#ababab]"
-        } w-[300px] rounded-[20px]`}
-      >
-        <MdOutlineReorder className="inline mr-2" size={20} /> <p>Orders</p>
-      </button>
-      <button
-        onClick={() => navigate("/tables")}
-        className={`flex items-center justify-center font-bold ${
-          isActive("/tables") ? "text-[#f5f5f5] bg-[#343434]" : "text-[#ababab]"
-        } w-[300px] rounded-[20px]`}
-      >
-        <MdTableBar className="inline mr-2" size={20} /> <p>Tables</p>
-      </button>
-      <button className="flex items-center justify-center font-bold text-[#ababab] w-[300px]">
-        <CiCircleMore className="inline mr-2" size={20} /> <p>More</p>
+    <div className="fixed bottom-0 left-0 right-0 bg-[#262626] p-2 h-16 flex justify-around items-center">
+
+      {/* HOME */}
+      <button onClick={() => navigate("/")}
+        className={`${isActive("/") ? "text-white" : "text-gray-400"}`}>
+        <FaHome size={20} />
       </button>
 
-      <button
-        disabled={isActive("/tables") || isActive("/menu")}
-        onClick={openModal}
-        className="absolute bottom-6 bg-[#F6B100] text-[#f5f5f5] rounded-full p-4 items-center"
-      >
-        <BiSolidDish size={40} />
-      </button>
-
-      <Modal isOpen={isModalOpen} onClose={closeModal} title="Create Order">
-        <div>
-          <label className="block text-[#ababab] mb-2 text-sm font-medium">Customer Name</label>
-          <div className="flex items-center rounded-lg p-3 px-4 bg-[#1f1f1f]">
-            <input value={name} onChange={(e) => setName(e.target.value)} type="text" name="" placeholder="Enter customer name" id="" className="bg-transparent flex-1 text-white focus:outline-none"  />
-          </div>
-        </div>
-        <div>
-          <label className="block text-[#ababab] mb-2 mt-3 text-sm font-medium">Customer Phone</label>
-          <div className="flex items-center rounded-lg p-3 px-4 bg-[#1f1f1f]">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} type="number" name="" placeholder="+91-9999999999" id="" className="bg-transparent flex-1 text-white focus:outline-none"  />
-          </div>
-        </div>
-        <div>
-          <label className="block mb-2 mt-3 text-sm font-medium text-[#ababab]">Guest</label>
-          <div className="flex items-center justify-between bg-[#1f1f1f] px-4 py-3 rounded-lg">
-            <button onClick={decrement} className="text-yellow-500 text-2xl">&minus;</button>
-            <span className="text-white">{guestCount} Person</span>
-            <button onClick={increment} className="text-yellow-500 text-2xl">&#43;</button>
-          </div>
-        </div>
-        <button onClick={handleCreateOrder} className="w-full bg-[#F6B100] text-[#f5f5f5] rounded-lg py-3 mt-8 hover:bg-yellow-700">
-          Create Order
+      {/* ORDERS */}
+      {user.role !== "Waiter" && (
+        <button onClick={() => navigate("/orders")}
+          className={`${isActive("/orders") ? "text-white" : "text-gray-400"}`}>
+          <MdOutlineReorder size={22} />
         </button>
+      )}
+
+      {/* TABLES */}
+      <button onClick={() => navigate("/tables")}
+        className={`${isActive("/tables") ? "text-white" : "text-gray-400"}`}>
+        <MdTableBar size={22} />
+      </button>
+
+      {/* DASHBOARD */}
+      {user.role === "Admin" && (
+        <button onClick={() => navigate("/dashboard")}
+          className="text-gray-400">
+          <CiCircleMore size={22} />
+        </button>
+      )}
+
+      {/* CREATE ORDER BUTTON */}
+      {user.role !== "Waiter" && (
+        <button
+          onClick={openModal}
+          className="absolute bottom-6 bg-[#F6B100] rounded-full p-4 shadow-lg"
+        >
+          <BiSolidDish size={30} />
+        </button>
+      )}
+
+      {/* MODAL */}
+      <Modal isOpen={isModalOpen} onClose={closeModal} title="Create Order">
+
+        <div className="flex flex-col gap-4">
+
+          {/* NAME */}
+          <input
+            type="text"
+            placeholder="Customer Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 rounded bg-[#2a2a2a] text-white outline-none"
+          />
+
+          {/* PHONE */}
+          <input
+            type="text"
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full p-3 rounded bg-[#2a2a2a] text-white outline-none"
+          />
+
+          {/* GUEST COUNT */}
+          <div className="flex justify-between items-center bg-[#2a2a2a] p-3 rounded">
+            <p className="text-white">Guests</p>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={decrement}
+                className="px-3 py-1 bg-black text-white rounded"
+              >
+                -
+              </button>
+
+              <span className="text-white text-lg">{guestCount}</span>
+
+              <button
+                onClick={increment}
+                className="px-3 py-1 bg-black text-white rounded"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* BUTTON */}
+          <button
+            onClick={handleCreateOrder}
+            className="w-full bg-[#F6B100] py-3 rounded font-semibold text-black hover:opacity-90"
+          >
+            Create Order
+          </button>
+
+        </div>
+
       </Modal>
+
     </div>
   );
 };

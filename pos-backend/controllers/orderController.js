@@ -10,6 +10,13 @@ const emitOrdersUpdated = (req) => {
   }
 };
 
+const emitNotification = (req, payload) => {
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("new-order", payload);
+  }
+};
+
 const addOrder = async (req, res, next) => {
   try {
     const {
@@ -20,6 +27,7 @@ const addOrder = async (req, res, next) => {
       table,
       paymentMethod,
       paymentData,
+      orderSource,
     } = req.body;
 
     if (!customerDetails?.name) {
@@ -32,18 +40,6 @@ const addOrder = async (req, res, next) => {
 
     if (!customerDetails?.guests) {
       return next(createHttpError(400, "Number of guests is required!"));
-    }
-
-    if (!bills?.total || bills?.total < 0) {
-      return next(createHttpError(400, "Valid bill total is required!"));
-    }
-
-    if (typeof bills?.tax !== "number") {
-      return next(createHttpError(400, "Valid tax is required!"));
-    }
-
-    if (!bills?.totalWithTax || bills?.totalWithTax < 0) {
-      return next(createHttpError(400, "Valid total with tax is required!"));
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -63,6 +59,31 @@ const addOrder = async (req, res, next) => {
       return next(createHttpError(404, "Table not found!"));
     }
 
+    const cleanedItems = items.map((item) => ({
+      id: item.id ? String(item.id) : "",
+      name: item.name || "Unnamed Item",
+      price: Number(item.price || 0),
+      quantity: Number(item.quantity || 1),
+    }));
+
+    const computedTotal = cleanedItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    const safeTax =
+      typeof bills?.tax === "number" && bills.tax >= 0 ? Number(bills.tax) : 0;
+
+    const safeTotal =
+      typeof bills?.total === "number" && bills.total >= 0
+        ? Number(bills.total)
+        : computedTotal;
+
+    const safeTotalWithTax =
+      typeof bills?.totalWithTax === "number" && bills.totalWithTax >= 0
+        ? Number(bills.totalWithTax)
+        : safeTotal + safeTax;
+
     if (paymentData?.stripe_session_id) {
       const existingOrder = await Order.findOne({
         "paymentData.stripe_session_id": paymentData.stripe_session_id,
@@ -77,13 +98,6 @@ const addOrder = async (req, res, next) => {
       }
     }
 
-    const cleanedItems = items.map((item) => ({
-      id: item.id ? String(item.id) : "",
-      name: item.name || "Unnamed Item",
-      price: Number(item.price || 0),
-      quantity: Number(item.quantity || 1),
-    }));
-
     const order = new Order({
       customerDetails: {
         name: customerDetails.name,
@@ -92,21 +106,49 @@ const addOrder = async (req, res, next) => {
       },
       orderStatus: orderStatus || "In Progress",
       bills: {
-        total: Number(bills.total),
-        tax: Number(bills.tax),
-        totalWithTax: Number(bills.totalWithTax),
+        total: safeTotal,
+        tax: safeTax,
+        totalWithTax: safeTotalWithTax,
       },
       items: cleanedItems,
       table,
       paymentMethod: paymentMethod || "Cash",
       paymentData: paymentData || {},
+      orderSource: orderSource || "staff",
     });
 
     await order.save();
 
+    await Table.findByIdAndUpdate(table, {
+      status: "Booked",
+      currentOrder: order._id,
+    });
+
     const populatedOrder = await Order.findById(order._id).populate("table");
 
     emitOrdersUpdated(req);
+
+    const isPaidOnline =
+      paymentMethod === "Online" && paymentData?.status === "paid";
+
+    let message = `New order from Table ${existingTable.tableNo}`;
+
+    if (paymentMethod === "Cash") {
+      message = `Cash order from Table ${existingTable.tableNo}`;
+    }
+
+    if (isPaidOnline) {
+      message = `Online payment completed from Table ${existingTable.tableNo}`;
+    }
+
+    emitNotification(req, {
+      type: isPaidOnline ? "online_paid" : paymentMethod === "Cash" ? "cash_order" : "new_order",
+      message,
+      table: existingTable.tableNo,
+      paymentMethod: paymentMethod || "Cash",
+      orderId: order._id,
+      orderSource: orderSource || "staff",
+    });
 
     return res.status(201).json({
       success: true,
@@ -175,6 +217,16 @@ const updateOrder = async (req, res, next) => {
       return next(createHttpError(404, "Order not found!"));
     }
 
+    if (
+      (orderStatus === "Completed" || orderStatus === "Canceled") &&
+      order.table?._id
+    ) {
+      await Table.findByIdAndUpdate(order.table._id, {
+        status: "Available",
+        currentOrder: null,
+      });
+    }
+
     emitOrdersUpdated(req);
 
     res.status(200).json({
@@ -195,11 +247,20 @@ const deleteOrder = async (req, res, next) => {
       return next(createHttpError(404, "Invalid id!"));
     }
 
-    const deletedOrder = await Order.findByIdAndDelete(id);
+    const deletedOrder = await Order.findById(id).populate("table");
 
     if (!deletedOrder) {
       return next(createHttpError(404, "Order not found!"));
     }
+
+    if (deletedOrder.table?._id) {
+      await Table.findByIdAndUpdate(deletedOrder.table._id, {
+        status: "Available",
+        currentOrder: null,
+      });
+    }
+
+    await Order.findByIdAndDelete(id);
 
     emitOrdersUpdated(req);
 

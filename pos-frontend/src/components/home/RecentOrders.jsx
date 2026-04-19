@@ -22,7 +22,6 @@ const RecentOrders = ({ orders = [] }) => {
   return (
     <div className="px-8 mt-6 pb-8">
       <div className="bg-[#1a1a1a] w-full rounded-lg overflow-hidden">
-        {/* HEADER */}
         <div className="flex justify-between items-center px-6 py-4">
           <h1 className="text-[#f5f5f5] text-lg font-semibold tracking-wide">
             Recent Orders
@@ -37,7 +36,6 @@ const RecentOrders = ({ orders = [] }) => {
           </button>
         </div>
 
-        {/* SEARCH */}
         <div className="flex items-center gap-4 bg-[#1f1f1f] rounded-[15px] px-6 py-4 mx-6">
           <FaSearch className="text-[#f5f5f5] shrink-0" />
           <input
@@ -49,7 +47,6 @@ const RecentOrders = ({ orders = [] }) => {
           />
         </div>
 
-        {/* ORDER LIST */}
         <div className="mt-4 px-6 pb-6 max-h-[270px] overflow-y-auto scrollbar-hide">
           {filteredOrders.length > 0 ? (
             filteredOrders.slice(0, 6).map((order) => (

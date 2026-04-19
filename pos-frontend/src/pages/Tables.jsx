@@ -2,18 +2,39 @@ import React, { useState, useEffect } from "react";
 import BottomNav from "../components/shared/BottomNav";
 import BackButton from "../components/shared/BackButton";
 import TableCard from "../components/tables/TableCard";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { getTables } from "../https";
 import { enqueueSnackbar } from "notistack";
+import socket from "../socket";
 
 const Tables = () => {
   const [status, setStatus] = useState("all");
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     document.title = "POS | Tables";
   }, []);
 
-  const { data: resData, isError } = useQuery({
+  useEffect(() => {
+    const handleTablesUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    };
+
+    socket.on("ordersUpdated", handleTablesUpdated);
+    socket.on("new-order", handleTablesUpdated);
+
+    return () => {
+      socket.off("ordersUpdated", handleTablesUpdated);
+      socket.off("new-order", handleTablesUpdated);
+    };
+  }, [queryClient]);
+
+  const { data: resData, isError, isLoading } = useQuery({
     queryKey: ["tables"],
     queryFn: async () => await getTables(),
     placeholderData: keepPreviousData,
@@ -34,7 +55,6 @@ const Tables = () => {
 
   return (
     <section className="bg-[#1f1f1f] min-h-screen pb-20">
-      {/* HEADER */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
           <BackButton />
@@ -62,25 +82,34 @@ const Tables = () => {
         </div>
       </div>
 
-      {/* GRID FIX */}
       <div className="px-6">
-        <div className="grid gap-4 
-          grid-cols-2 
-          md:grid-cols-3 
-          lg:grid-cols-4 
-          xl:grid-cols-5">
-          
-          {filteredTables.map((table) => (
-            <TableCard
-              key={table._id}
-              id={table._id}
-              name={table.tableNo}
-              status={table.status}
-              initials={table?.currentOrder?.customerDetails?.name}
-              seats={table.seats}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <p className="text-gray-400">Loading tables...</p>
+        ) : (
+          <div
+            className="grid gap-4 
+            grid-cols-2 
+            md:grid-cols-3 
+            lg:grid-cols-4 
+            xl:grid-cols-5"
+          >
+            {filteredTables.map((table) => (
+              <TableCard
+                key={table._id}
+                id={table._id}
+                name={table.tableNo}
+                status={table.status}
+                initials={table?.currentOrder?.customerDetails?.name}
+                seats={table.seats}
+                orderId={table?.currentOrder?._id || null}
+                onTableUpdated={() => {
+                  queryClient.invalidateQueries({ queryKey: ["tables"] });
+                  queryClient.invalidateQueries({ queryKey: ["orders"] });
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <BottomNav />

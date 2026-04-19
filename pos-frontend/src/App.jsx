@@ -9,76 +9,100 @@ import { Home, Auth, Orders, Tables, Menu, Dashboard } from "./pages";
 import Header from "./components/shared/Header";
 import { useSelector } from "react-redux";
 import useLoadData from "./hooks/useLoadData";
-import FullScreenLoader from "./components/shared/FullScreenLoader"
+import FullScreenLoader from "./components/shared/FullScreenLoader";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import CustomerMenu from "./pages/CustomerMenu";
+import CustomerPaymentSuccess from "./pages/CustomerPaymentSuccess";
+
+// 🔥 NEW ROLE PROTECTED ROUTE
+function ProtectedRoute({ children, allowedRoles }) {
+  const { isAuth, role } = useSelector((state) => state.user);
+
+  if (!isAuth) return <Navigate to="/auth" />;
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/" />;
+  }
+
+  return children;
+}
 
 function Layout() {
   const isLoading = useLoadData();
   const location = useLocation();
-  const hideHeaderRoutes = ["/auth"];
-  const { isAuth } = useSelector(state => state.user);
 
-  if(isLoading) return <FullScreenLoader />
+  const hideHeaderRoutes = ["/auth"];
+
+  const shouldHideHeader =
+    hideHeaderRoutes.includes(location.pathname) ||
+    location.pathname.startsWith("/customer-menu") ||
+    location.pathname.startsWith("/customer-payment-success");
+
+  if (isLoading) return <FullScreenLoader />;
 
   return (
     <>
-      {!hideHeaderRoutes.includes(location.pathname) && <Header />}
+      {!shouldHideHeader && <Header />}
+
       <Routes>
+        {/* PUBLIC */}
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/customer-payment-success" element={<CustomerPaymentSuccess />} />
+        <Route path="/customer-menu/:tableNo" element={<CustomerMenu />} />
+
+        {/* ALL ROLES */}
         <Route
           path="/"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoute allowedRoles={["Admin", "Cashier", "Waiter"]}>
               <Home />
-            </ProtectedRoutes>
+            </ProtectedRoute>
           }
         />
-        <Route path="/auth" element={isAuth ? <Navigate to="/" /> : <Auth />} />
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoutes>
-              <Orders />
-            </ProtectedRoutes>
-          }
-        />
-        <Route path="/payment-success" element={<PaymentSuccess />} />
-        <Route
-          path="/tables"
-          element={
-            <ProtectedRoutes>
-              <Tables />
-            </ProtectedRoutes>
-          }
-        />
+
         <Route
           path="/menu"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoute allowedRoles={["Admin", "Cashier", "Waiter"]}>
               <Menu />
-            </ProtectedRoutes>
+            </ProtectedRoute>
           }
         />
+
+        {/* CASHIER + ADMIN */}
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Cashier"]}>
+              <Orders />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/tables"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Cashier", "Waiter"]}>
+              <Tables />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ADMIN ONLY */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoute allowedRoles={["Admin"]}>
               <Dashboard />
-            </ProtectedRoutes>
+            </ProtectedRoute>
           }
         />
+
         <Route path="*" element={<div>Not Found</div>} />
       </Routes>
     </>
   );
-}
-
-function ProtectedRoutes({ children }) {
-  const { isAuth } = useSelector((state) => state.user);
-  if (!isAuth) {
-    return <Navigate to="/auth" />;
-  }
-
-  return children;
 }
 
 function App() {

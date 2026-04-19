@@ -5,9 +5,7 @@ import BackButton from "../components/shared/BackButton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrders, updateOrderStatus, deleteOrder } from "../https/index";
 import { enqueueSnackbar } from "notistack";
-import { io } from "socket.io-client";
-
-const socket = io("http://localhost:8000");
+import socket from "../socket";
 
 const Orders = () => {
   const [status, setStatus] = useState("all");
@@ -19,17 +17,20 @@ const Orders = () => {
 
   useEffect(() => {
     const handleOrdersUpdated = () => {
-      queryClient.invalidateQueries(["orders"]);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
     };
 
     socket.on("ordersUpdated", handleOrdersUpdated);
+    socket.on("new-order", handleOrdersUpdated);
 
     return () => {
       socket.off("ordersUpdated", handleOrdersUpdated);
+      socket.off("new-order", handleOrdersUpdated);
     };
   }, [queryClient]);
 
-  const { data: resData, isError } = useQuery({
+  const { data: resData, isError, isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => await getOrders(),
   });
@@ -57,7 +58,8 @@ const Orders = () => {
       enqueueSnackbar(`Order marked as ${newStatus}`, {
         variant: "success",
       });
-      queryClient.invalidateQueries(["orders"]);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
     } catch (error) {
       enqueueSnackbar("Failed to update order", { variant: "error" });
     }
@@ -74,7 +76,8 @@ const Orders = () => {
       enqueueSnackbar("Order deleted successfully!", {
         variant: "success",
       });
-      queryClient.invalidateQueries(["orders"]);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
     } catch (error) {
       enqueueSnackbar("Failed to delete order", { variant: "error" });
     }
@@ -114,7 +117,9 @@ const Orders = () => {
       </div>
 
       <div className="px-6">
-        {filteredOrders.length > 0 ? (
+        {isLoading ? (
+          <p className="text-gray-400">Loading orders...</p>
+        ) : filteredOrders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredOrders.map((order) => (
               <div

@@ -3,7 +3,12 @@ import BottomNav from "../components/shared/BottomNav";
 import OrderCard from "../components/orders/OrderCard";
 import BackButton from "../components/shared/BackButton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getOrders, updateOrderStatus, deleteOrder } from "../https/index";
+import {
+  getOrders,
+  updateOrderStatus,
+  deleteOrder,
+  getOrderById,
+} from "../https/index";
 import { enqueueSnackbar } from "notistack";
 import socket from "../socket";
 import { useReactToPrint } from "react-to-print";
@@ -14,7 +19,7 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const queryClient = useQueryClient();
-  const printRef = useRef();
+  const printRef = useRef(null);
 
   useEffect(() => {
     document.title = "POS | Orders";
@@ -36,7 +41,7 @@ const Orders = () => {
   }, [queryClient]);
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    contentRef: printRef,
     documentTitle: selectedOrder
       ? `Receipt-${selectedOrder._id.slice(-6)}`
       : "Receipt",
@@ -95,12 +100,31 @@ const Orders = () => {
     }
   };
 
-  const handlePrintReceipt = (order) => {
-    setSelectedOrder(order);
+  const handlePrintReceipt = async (order) => {
+    try {
+      let latestOrder = order;
 
-    setTimeout(() => {
-      handlePrint();
-    }, 200);
+      if (order?.isNewOrder) {
+        await updateOrderStatus({
+          orderId: order._id,
+          isNewOrder: false,
+        });
+
+        const refreshed = await getOrderById(order._id);
+        latestOrder = refreshed?.data?.data || order;
+
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["tables"] });
+      }
+
+      setSelectedOrder(latestOrder);
+
+      setTimeout(() => {
+        handlePrint();
+      }, 200);
+    } catch (error) {
+      enqueueSnackbar("Failed to print receipt", { variant: "error" });
+    }
   };
 
   return (
@@ -212,7 +236,7 @@ const Orders = () => {
         )}
       </div>
 
-      <div style={{ display: "none" }}>
+      <div className="fixed -left-[9999px] top-0">
         {selectedOrder && <Receipt ref={printRef} order={selectedOrder} />}
       </div>
 

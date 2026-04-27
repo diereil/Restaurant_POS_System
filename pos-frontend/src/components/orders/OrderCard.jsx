@@ -63,7 +63,15 @@ const OrderCard = ({ order }) => {
   };
 
   return (
-    <div className="w-full bg-[#262626] p-4 rounded-lg">
+    <div className="w-full bg-[#262626] p-4 rounded-lg relative">
+      {order.isNewOrder && (
+        <div className="absolute top-3 right-3">
+          <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+            NEW
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start gap-4">
         <div className="bg-[#f6b100] w-12 h-12 flex items-center justify-center text-xl font-bold rounded-lg shrink-0">
           {getAvatarName(order.customerDetails.name)}

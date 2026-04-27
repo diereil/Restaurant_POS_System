@@ -22,8 +22,14 @@ export const updateTable = ({ tableId, ...tableData }) =>
 export const addOrder = (data) => axios.post("/api/order/", data);
 export const getOrders = () => axios.get("/api/order");
 export const getOrderById = (id) => axios.get(`/api/order/${id}`);
-export const updateOrderStatus = ({ orderId, orderStatus }) =>
-  axios.put(`/api/order/${orderId}`, { orderStatus });
+
+// ✅ UPDATED: supports both orderStatus and isNewOrder
+export const updateOrderStatus = ({ orderId, orderStatus, isNewOrder }) =>
+  axios.put(`/api/order/${orderId}`, {
+    ...(orderStatus !== undefined ? { orderStatus } : {}),
+    ...(typeof isNewOrder === "boolean" ? { isNewOrder } : {}),
+  });
+
 export const deleteOrder = (orderId) => axios.delete(`/api/order/${orderId}`);
 
 // =========================

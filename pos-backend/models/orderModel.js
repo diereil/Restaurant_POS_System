@@ -43,14 +43,13 @@ const orderSchema = new mongoose.Schema(
       default: "Cash",
     },
 
-    // 🔥 IMPROVED PAYMENT DATA
     paymentData: {
       provider: {
-        type: String, // "stripe"
+        type: String,
         default: null,
       },
       status: {
-        type: String, // "pending", "paid"
+        type: String,
         default: "pending",
       },
       stripe_session_id: {
@@ -59,11 +58,16 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-    // 🔥 VERY IMPORTANT (NEW)
     orderSource: {
       type: String,
       enum: ["staff", "customer"],
       default: "staff",
+    },
+
+    // 🔥 NEW FLAG
+    isNewOrder: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

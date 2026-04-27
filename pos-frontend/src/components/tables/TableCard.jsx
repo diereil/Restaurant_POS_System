@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getAvatarName, getBgColor } from "../../utils";
 import { useDispatch } from "react-redux";
 import { updateTable as setCustomerTable } from "../../redux/slices/customerSlice";
-import { updateTable, getOrderById } from "../../https";
+import { updateTable, getOrderById, updateOrderStatus } from "../../https";
 import { enqueueSnackbar } from "notistack";
 import { QRCodeCanvas } from "qrcode.react";
 import Modal from "../shared/Modal";
@@ -29,7 +29,6 @@ const TableCard = ({
 
   const printRef = useRef(null);
 
-  // ✅ react-to-print newer API
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: orderData ? `Receipt-Table-${name}` : "Receipt",
@@ -71,8 +70,20 @@ const TableCard = ({
     try {
       setLoadingOrder(true);
       const res = await getOrderById(orderId);
-      setOrderData(res?.data?.data || null);
+      const fetchedOrder = res?.data?.data || null;
+
+      if (fetchedOrder?.isNewOrder) {
+        await updateOrderStatus({
+          orderId,
+          isNewOrder: false,
+        });
+        fetchedOrder.isNewOrder = false;
+      }
+
+      setOrderData(fetchedOrder);
       setShowOrder(true);
+
+      if (onTableUpdated) onTableUpdated();
     } catch (err) {
       enqueueSnackbar("Failed to fetch order", { variant: "error" });
     } finally {
@@ -94,15 +105,22 @@ const TableCard = ({
       : "bg-green-500/20 text-green-400";
 
   const qrUrl = `http://localhost:5173/customer-menu/${name}`;
-
   const total = orderData?.bills?.totalWithTax ?? orderData?.bills?.total ?? 0;
 
   return (
     <>
       <div
         onClick={handleClick}
-        className="bg-[#262626] hover:bg-[#2c2c2c] rounded-xl p-5 cursor-pointer transition flex flex-col justify-between"
+        className="relative bg-[#262626] hover:bg-[#2c2c2c] rounded-xl p-5 cursor-pointer transition flex flex-col justify-between"
       >
+        {/* {status === "Booked" && orderId && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+              ACTIVE
+            </span>
+          </div>
+        )} */}
+
         <div className="flex justify-between items-center">
           <h1 className="text-white font-semibold text-lg">Table {name}</h1>
           <span className={`px-2 py-1 text-xs rounded ${statusStyle}`}>
@@ -211,6 +229,12 @@ const TableCard = ({
               </div>
             </div>
 
+            {orderData.isNewOrder && (
+              <div className="bg-red-600/20 border border-red-500 text-red-300 px-3 py-2 rounded text-sm font-semibold">
+                This is a NEW order
+              </div>
+            )}
+
             <div className="bg-[#262626] p-4 rounded">
               <p className="text-sm font-semibold mb-3">Items Ordered</p>
 
@@ -255,7 +279,6 @@ const TableCard = ({
         )}
       </Modal>
 
-      {/* ✅ hidden printable content must stay mounted */}
       <div className="fixed -left-[9999px] top-0">
         {orderData && <Receipt ref={printRef} order={orderData} />}
       </div>

@@ -115,6 +115,7 @@ const addOrder = async (req, res, next) => {
       paymentMethod: paymentMethod || "Cash",
       paymentData: paymentData || {},
       orderSource: orderSource || "staff",
+      isNewOrder: true,
     });
 
     await order.save();
@@ -142,7 +143,11 @@ const addOrder = async (req, res, next) => {
     }
 
     emitNotification(req, {
-      type: isPaidOnline ? "online_paid" : paymentMethod === "Cash" ? "cash_order" : "new_order",
+      type: isPaidOnline
+        ? "online_paid"
+        : paymentMethod === "Cash"
+        ? "cash_order"
+        : "new_order",
       message,
       table: existingTable.tableNo,
       paymentMethod: paymentMethod || "Cash",
@@ -191,34 +196,43 @@ const getOrders = async (req, res, next) => {
 
 const updateOrder = async (req, res, next) => {
   try {
-    const { orderStatus } = req.body;
+    const { orderStatus, isNewOrder } = req.body;
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(createHttpError(404, "Invalid id!"));
     }
 
-    if (!orderStatus) {
-      return next(createHttpError(400, "Order status is required!"));
+    const updateData = {};
+
+    if (orderStatus) {
+      const allowedStatuses = ["In Progress", "Ready", "Completed", "Canceled"];
+      if (!allowedStatuses.includes(orderStatus)) {
+        return next(createHttpError(400, "Invalid order status!"));
+      }
+      updateData.orderStatus = orderStatus;
     }
 
-    const allowedStatuses = ["In Progress", "Ready", "Completed", "Canceled"];
-    if (!allowedStatuses.includes(orderStatus)) {
-      return next(createHttpError(400, "Invalid order status!"));
+    if (typeof isNewOrder === "boolean") {
+      updateData.isNewOrder = isNewOrder;
     }
 
-    const order = await Order.findByIdAndUpdate(
-      id,
-      { orderStatus },
-      { new: true }
-    ).populate("table");
+    if (Object.keys(updateData).length === 0) {
+      return next(createHttpError(400, "No valid fields provided for update!"));
+    }
+
+    const order = await Order.findByIdAndUpdate(id, updateData, {
+      new: true,
+    }).populate("table");
 
     if (!order) {
       return next(createHttpError(404, "Order not found!"));
     }
 
     if (
-      (orderStatus === "Completed" || orderStatus === "Canceled") &&
+      updateData.orderStatus &&
+      (updateData.orderStatus === "Completed" ||
+        updateData.orderStatus === "Canceled") &&
       order.table?._id
     ) {
       await Table.findByIdAndUpdate(order.table._id, {

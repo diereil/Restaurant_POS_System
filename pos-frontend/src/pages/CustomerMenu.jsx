@@ -13,6 +13,9 @@ const CustomerMenu = () => {
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const API_BASE =
+    import.meta.env.VITE_API_URL || window.location.origin;
+
   useEffect(() => {
     document.title = `Table ${tableNo} Menu`;
   }, [tableNo]);
@@ -45,10 +48,7 @@ const CustomerMenu = () => {
       if (existing) {
         return prev.map((cartItem) =>
           cartItem.id === item.id
-            ? {
-                ...cartItem,
-                quantity: cartItem.quantity + qty,
-              }
+            ? { ...cartItem, quantity: cartItem.quantity + qty }
             : cartItem
         );
       }
@@ -58,7 +58,7 @@ const CustomerMenu = () => {
         {
           id: item.id,
           name: item.name,
-          price: item.price,
+          price: Number(item.price),
           quantity: qty,
         },
       ];
@@ -80,117 +80,87 @@ const CustomerMenu = () => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
-  const handleCashOrder = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/table/number/${tableNo}`);
+  const getTableId = async () => {
+    const res = await fetch(`${API_BASE}/api/table/number/${tableNo}`);
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch table");
+    }
+
     const tableData = await res.json();
     const tableId = tableData?.data?._id;
 
     if (!tableId) {
-      enqueueSnackbar("Table not found!", { variant: "error" });
-      return;
+      throw new Error("Table not found");
     }
 
-    await addOrder({
-      customerDetails: {
-        name: "Guest",
-        phone: "N/A",
-        guests: 1,
-      },
-      orderStatus: "In Progress",
-      items: cart,
-      bills: {
-        total,
-        tax: 0,
-        totalWithTax: total,
-      },
-      table: tableId,
-      paymentMethod: "Cash",
-      paymentData: {
-        provider: null,
-        status: "pending",
-        stripe_session_id: null,
-      },
-      orderSource: "customer",
-    });
+    return tableId;
+  };
+
+  const buildOrderData = (tableId, method, stripeSessionId = null) => ({
+    customerDetails: {
+      name: "Guest",
+      phone: "N/A",
+      guests: 1,
+    },
+    orderStatus: "In Progress",
+    items: cart,
+    bills: {
+      total,
+      tax: 0,
+      totalWithTax: total,
+    },
+    table: tableId,
+    paymentMethod: method,
+    paymentData: {
+      provider: method === "Online" ? "stripe" : null,
+      status: method === "Online" ? "pending" : "pending",
+      stripe_session_id: stripeSessionId,
+    },
+    orderSource: "customer",
+    tableNo,
+  });
+
+  const handleCashOrder = async () => {
+    const tableId = await getTableId();
+
+    const orderData = buildOrderData(tableId, "Cash");
+
+    await addOrder(orderData);
 
     enqueueSnackbar("Cash order placed!", { variant: "success" });
+
     setCart([]);
     setCounts({});
     setPaymentMethod("Cash");
   };
 
   const handleOnlineOrder = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/table/number/${tableNo}`);
-    const tableData = await res.json();
-    const tableId = tableData?.data?._id;
+    const tableId = await getTableId();
 
-    if (!tableId) {
-      enqueueSnackbar("Table not found!", { variant: "error" });
-      return;
-    }
-
-    const pendingOrder = {
-      customerDetails: {
-        name: "Guest",
-        phone: "N/A",
-        guests: 1,
-      },
-      orderStatus: "In Progress",
-      items: cart,
-      bills: {
-        total,
-        tax: 0,
-        totalWithTax: total,
-      },
-      table: tableId,
-      paymentMethod: "Online",
-      paymentData: {
-        provider: "stripe",
-        status: "pending",
-        stripe_session_id: null,
-      },
-      orderSource: "customer",
-      tableNo,
-    };
+    const pendingOrder = buildOrderData(tableId, "Online");
 
     localStorage.setItem(
       "pendingCustomerStripeOrder",
       JSON.stringify(pendingOrder)
     );
 
-    let response;
+    const response = await createStripeCheckoutSession({
+      amount: total.toFixed(2),
+      description: `Customer Order - Table ${tableNo}`,
+      customer: {
+        name: "Guest",
+        email: "guest@example.com",
+        phone: "N/A",
+      },
+      successPath: "/customer-payment-success",
+      cancelPath: `/customer-menu/${tableNo}`,
+    });
 
-try {
-  response = await createStripeCheckoutSession({
-    amount: total.toFixed(2),
-    description: `Customer Order - Table ${tableNo}`,
-    customer: {
-      name: "Guest",
-      email: "guest@example.com",
-      phone: "N/A",
-    },
-    successPath: "/customer-payment-success",
-    cancelPath: `/customer-menu/${tableNo}`,
-  });
-} catch (err) {
-  console.log(err);
-  enqueueSnackbar("Stripe request failed!", { variant: "error" });
-  return;
-}
-
-const data = response?.data;
-
-if (!data?.url) {
-  enqueueSnackbar("Stripe URL missing!", { variant: "error" });
-  return;
-}
-
-window.location.href = data.url;
+    const data = response?.data;
 
     if (!data?.url) {
-      enqueueSnackbar("Failed to start online payment!", {
-        variant: "error",
-      });
+      enqueueSnackbar("Stripe URL missing!", { variant: "error" });
       return;
     }
 
@@ -214,8 +184,8 @@ window.location.href = data.url;
         await handleOnlineOrder();
       }
     } catch (err) {
-      console.log(err);
-      enqueueSnackbar("Order failed!", { variant: "error" });
+      console.log("Customer order error:", err);
+      enqueueSnackbar(err?.message || "Order failed!", { variant: "error" });
     } finally {
       setIsSubmitting(false);
     }

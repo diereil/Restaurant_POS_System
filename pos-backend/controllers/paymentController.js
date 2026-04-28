@@ -3,7 +3,7 @@ const createHttpError = require("http-errors");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const FRONTEND_URL = "http://localhost:5173";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const createCheckoutSession = async (req, res, next) => {
   try {

@@ -81,7 +81,7 @@ const CustomerMenu = () => {
   }, [cart]);
 
   const handleCashOrder = async () => {
-    const res = await fetch(`http://localhost:8000/api/table/number/${tableNo}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/table/number/${tableNo}`);
     const tableData = await res.json();
     const tableId = tableData?.data?._id;
 
@@ -120,7 +120,7 @@ const CustomerMenu = () => {
   };
 
   const handleOnlineOrder = async () => {
-    const res = await fetch(`http://localhost:8000/api/table/number/${tableNo}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/table/number/${tableNo}`);
     const tableData = await res.json();
     const tableId = tableData?.data?._id;
 

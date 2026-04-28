@@ -9,15 +9,30 @@ const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const PORT = config.port;
+
+const PORT = process.env.PORT || config.port || 8000;
 
 connectDB();
 
-const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
-    credentials: true,
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+const corsOptions = {
+  credentials: true,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
   },
+};
+
+const io = new Server(server, {
+  cors: corsOptions,
 });
 
 app.set("io", io);
@@ -31,13 +46,7 @@ io.on("connection", (socket) => {
 });
 
 // Middlewares
-app.use(
-  cors({
-    credentials: true,
-    origin: ["http://localhost:5173", "http://localhost:5174"],
-  })
-);
-
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -46,7 +55,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello from POS Server!" });
 });
 
-// Other Endpoints
+// Routes
 app.use("/api/user", require("./routes/userRoute"));
 app.use("/api/order", require("./routes/orderRoute"));
 app.use("/api/table", require("./routes/tableRoute"));

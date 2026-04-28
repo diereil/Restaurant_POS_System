@@ -104,7 +104,7 @@ const TableCard = ({
       ? "bg-red-500/20 text-red-400"
       : "bg-green-500/20 text-green-400";
 
-  const qrUrl = `http://localhost:5173/customer-menu/${name}`;
+  const qrUrl = `${window.location.origin}/customer-menu/${name}`;
   const total = orderData?.bills?.totalWithTax ?? orderData?.bills?.total ?? 0;
 
   return (

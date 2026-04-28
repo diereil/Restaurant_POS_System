@@ -3,7 +3,7 @@ const createHttpError = require("http-errors");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND_URL = "http://localhost:5173";
 
 const createCheckoutSession = async (req, res, next) => {
   try {
@@ -39,8 +39,8 @@ const createCheckoutSession = async (req, res, next) => {
         },
       ],
       customer_email: customer?.email || undefined,
-     success_url: `${FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-cancel_url: `${FRONTEND_URL}/menu`,
+      success_url: `${FRONTEND_URL}${finalSuccessPath}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${FRONTEND_URL}${finalCancelPath}`,
       metadata: {
         customerName: customer?.name || "Customer",
         customerPhone: customer?.phone || "",

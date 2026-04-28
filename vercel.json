@@ -19,8 +19,11 @@
       "dest": "pos-backend/app.js"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "pos-frontend/dist/index.html"
+      "dest": "/index.html"
     }
   ]
 }

@@ -19,11 +19,16 @@
       "dest": "pos-backend/app.js"
     },
     {
-      "handle": "filesystem"
+      "src": "/assets/(.*)",
+      "dest": "pos-frontend/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|webp|mp3|wav))",
+      "dest": "pos-frontend/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "pos-frontend/index.html"
     }
   ]
 }

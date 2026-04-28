@@ -40,7 +40,7 @@ export const NotificationProvider = ({ children }) => {
 
               const notification = {
                 id: Date.now(),
-                message: `New ${order.paymentMethod} order - Table ${order.tableNo}`,
+                message: `New ${order.paymentMethod} order - Table ${order.table?.tableNo || order.table}`,
                 orderId: order._id,
                 createdAt: new Date().toLocaleTimeString(),
               };

@@ -98,8 +98,9 @@ function Layout() {
               <Tables />
             </ProtectedRoute>
           }
+          
         />
-
+<Route path="/customer-payment-success" element={<CustomerPaymentSuccess />} /> 
         {/* ADMIN ONLY */}
         <Route
           path="/dashboard"

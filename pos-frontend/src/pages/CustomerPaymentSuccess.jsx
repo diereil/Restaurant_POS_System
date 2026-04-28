@@ -1,81 +1,51 @@
-import React, { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { addOrder, getStripeCheckoutSession } from "../https";
+import { useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { addOrder } from "../https";
 import { enqueueSnackbar } from "notistack";
 
 const CustomerPaymentSuccess = () => {
+  const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const finalizeCustomerOrder = async () => {
+    const processPayment = async () => {
       try {
-        const sessionId = searchParams.get("session_id");
-        const raw = localStorage.getItem("pendingCustomerStripeOrder");
+        const sessionId = params.get("session_id");
 
-        if (!sessionId) {
-          enqueueSnackbar("Missing Stripe session ID!", { variant: "warning" });
-          navigate("/");
+        const pending = JSON.parse(
+          localStorage.getItem("pendingCustomerStripeOrder")
+        );
+
+        if (!pending || !sessionId) {
+          enqueueSnackbar("Missing payment data!", { variant: "error" });
           return;
         }
 
-        if (!raw) {
-          enqueueSnackbar("No pending customer order found!", { variant: "warning" });
-          navigate("/");
-          return;
-        }
+        pending.paymentData = {
+          provider: "stripe",
+          status: "paid",
+          stripe_session_id: sessionId,
+        };
 
-        const processedKey = `customerStripeProcessed_${sessionId}`;
-        if (sessionStorage.getItem(processedKey)) {
-          navigate("/");
-          return;
-        }
+        pending.paymentMethod = "Online";
 
-        const sessionRes = await getStripeCheckoutSession(sessionId);
-        const session = sessionRes?.data?.session;
+        await addOrder(pending);
 
-        if (session?.payment_status !== "paid") {
-          enqueueSnackbar("Payment not completed!", { variant: "warning" });
-          navigate("/");
-          return;
-        }
-
-        const orderData = JSON.parse(raw);
-
-        await addOrder({
-          ...orderData,
-          paymentData: {
-            provider: "stripe",
-            status: "paid",
-            stripe_session_id: session.id,
-          },
-        });
-
-        sessionStorage.setItem(processedKey, "true");
         localStorage.removeItem("pendingCustomerStripeOrder");
 
-        enqueueSnackbar("Online payment successful! Order placed.", {
-          variant: "success",
-        });
+        enqueueSnackbar("Payment successful!", { variant: "success" });
 
-        navigate(`/customer-menu/${orderData.tableNo}`);
-      } catch (error) {
-        console.log(error);
-        enqueueSnackbar("Failed to finalize customer order!", {
-          variant: "error",
-        });
-        navigate("/");
+        navigate(`/customer-menu/${pending.tableNo}`);
+      } catch (err) {
+        console.log(err);
+        enqueueSnackbar("Failed to finalize order!", { variant: "error" });
       }
     };
 
-    finalizeCustomerOrder();
-  }, [navigate, searchParams]);
+    processPayment();
+  }, []);
 
-  return (
-    <div className="min-h-screen bg-[#1f1f1f] flex items-center justify-center text-white text-2xl">
-      Processing customer payment...
-    </div>
-  );
+  return <div>Processing payment...</div>;
 };
 
 export default CustomerPaymentSuccess;

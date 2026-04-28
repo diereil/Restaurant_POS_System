@@ -100,7 +100,7 @@ function Layout() {
           }
           
         />
-<Route path="/customer-payment-success" element={<CustomerPaymentSuccess />} /> 
+<Route path="/customer-payment-success" element={<CustomerPaymentSuccess />} />
         {/* ADMIN ONLY */}
         <Route
           path="/dashboard"

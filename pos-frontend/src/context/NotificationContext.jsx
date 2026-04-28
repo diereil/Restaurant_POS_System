@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import socket from "../socket";
 import cashAlertSound from "../assets/sounds/cash-alert.mp3";
 import onlineAlertSound from "../assets/sounds/online-alert.mp3";
+import axios from "../https/axiosWrapper";
 
 const NotificationContext = createContext();
 
@@ -19,85 +19,61 @@ export const NotificationProvider = ({ children }) => {
 
   useEffect(() => {
     cashAudioRef.current = new Audio(cashAlertSound);
-    cashAudioRef.current.preload = "auto";
-
     onlineAudioRef.current = new Audio(onlineAlertSound);
-    onlineAudioRef.current.preload = "auto";
   }, []);
 
   useEffect(() => {
     localStorage.setItem("notificationsMuted", String(isMuted));
   }, [isMuted]);
 
+  // 🔥 POLLING INSTEAD OF SOCKET
   useEffect(() => {
-    const handleNewOrder = (data) => {
-      const notification = {
-        id: Date.now() + Math.random(),
-        type: data?.type || "new_order",
-        message: data?.message || "New notification",
-        table: data?.table || null,
-        paymentMethod: data?.paymentMethod || null,
-        orderId: data?.orderId || null,
-        orderSource: data?.orderSource || null,
-        createdAt: new Date().toLocaleTimeString(),
-      };
+    const fetchOrders = async () => {
+      try {
+        const res = await axios.get("/api/order");
+        const orders = res?.data?.data || [];
 
-      setNotifications((prev) => [notification, ...prev]);
+        orders.forEach((order) => {
+          if (order.orderSource === "customer" && order.isNewOrder) {
+            if (!seenOrderIdsRef.current.has(order._id)) {
+              seenOrderIdsRef.current.add(order._id);
 
-      const isCustomerOrder = notification.orderSource === "customer";
-      const isNewOrderId =
-        notification.orderId && !seenOrderIdsRef.current.has(notification.orderId);
+              const notification = {
+                id: Date.now(),
+                message: `New ${order.paymentMethod} order - Table ${order.tableNo}`,
+                orderId: order._id,
+                createdAt: new Date().toLocaleTimeString(),
+              };
 
-      if (notification.orderId) {
-        seenOrderIdsRef.current.add(notification.orderId);
-      }
+              setNotifications((prev) => [notification, ...prev]);
 
-      if (!isMuted && isCustomerOrder && isNewOrderId) {
-        try {
-          if (notification.type === "online_paid") {
-            if (onlineAudioRef.current) {
-              onlineAudioRef.current.currentTime = 0;
-              onlineAudioRef.current.play().catch((error) => {
-                console.log("Online audio blocked:", error);
-              });
-            }
-          } else if (notification.type === "cash_order") {
-            if (cashAudioRef.current) {
-              cashAudioRef.current.currentTime = 0;
-              cashAudioRef.current.play().catch((error) => {
-                console.log("Cash audio blocked:", error);
-              });
+              // 🔊 SOUND
+              if (!isMuted) {
+                if (order.paymentMethod === "Cash") {
+                  cashAudioRef.current?.play();
+                } else {
+                  onlineAudioRef.current?.play();
+                }
+              }
             }
           }
-        } catch (error) {
-          console.log("Audio error:", error);
-        }
+        });
+      } catch (err) {
+        console.log("Polling error:", err);
       }
     };
 
-    socket.on("new-order", handleNewOrder);
+    const interval = setInterval(fetchOrders, 5000);
 
-    return () => {
-      socket.off("new-order", handleNewOrder);
-    };
+    return () => clearInterval(interval);
   }, [isMuted]);
 
-  const clearNotifications = () => {
-    setNotifications([]);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-  };
+  const clearNotifications = () => setNotifications([]);
+  const toggleMute = () => setIsMuted((prev) => !prev);
 
   return (
     <NotificationContext.Provider
-      value={{
-        notifications,
-        clearNotifications,
-        isMuted,
-        toggleMute,
-      }}
+      value={{ notifications, clearNotifications, isMuted, toggleMute }}
     >
       {children}
     </NotificationContext.Provider>

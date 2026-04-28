@@ -3,7 +3,19 @@ const createHttpError = require("http-errors");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const getFrontendUrl = (req) => {
+  const origin = req.headers.origin;
+
+  if (origin && origin.includes("vercel.app")) {
+    return origin;
+  }
+
+  if (process.env.FRONTEND_URL) {
+    return process.env.FRONTEND_URL;
+  }
+
+  return "http://localhost:5173";
+};
 
 const createCheckoutSession = async (req, res, next) => {
   try {
@@ -18,6 +30,8 @@ const createCheckoutSession = async (req, res, next) => {
     if (!process.env.STRIPE_SECRET_KEY) {
       return next(createHttpError(500, "Missing Stripe secret key!"));
     }
+
+    const frontendUrl = getFrontendUrl(req);
 
     const finalSuccessPath = successPath || "/payment-success";
     const finalCancelPath = cancelPath || "/menu";
@@ -39,8 +53,8 @@ const createCheckoutSession = async (req, res, next) => {
         },
       ],
       customer_email: customer?.email || undefined,
-      success_url: `${FRONTEND_URL}${finalSuccessPath}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${FRONTEND_URL}${finalCancelPath}`,
+      success_url: `${frontendUrl}${finalSuccessPath}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}${finalCancelPath}`,
       metadata: {
         customerName: customer?.name || "Customer",
         customerPhone: customer?.phone || "",
